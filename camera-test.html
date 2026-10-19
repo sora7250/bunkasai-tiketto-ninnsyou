@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>チケット認証テスト</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f0f0f0; }
+    video { width: 100%; max-width: 400px; border: 2px solid #333; border-radius: 8px; background-color: #000; }
+    canvas { display: none; }
+    button { padding: 15px 30px; font-size: 18px; margin: 20px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
+    #resultArea { margin-top: 20px; padding: 15px; border-radius: 8px; background-color: #fff; min-height: 100px; white-space: pre-wrap; text-align: left; border: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+
+  <h2>🎟️ チケット認証システム検証</h2>
+
+  <!-- iOSでのインライン再生に必須の属性（playsinline等）を付与しています -->
+  <video id="cameraView" autoplay playsinline muted></video>
+  <canvas id="snapshotCanvas"></canvas>
+
+  <div>
+    <button id="captureBtn" disabled>撮影してAI判定</button>
+  </div>
+
+  <div id="resultArea">ここに判定結果が表示されます...</div>
+
+  <script src="camera-ocr.js"></script>
+</body>
+</html>
