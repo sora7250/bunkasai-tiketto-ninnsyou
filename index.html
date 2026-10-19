@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>チケット認証テスト（統合版）</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f0f0f0; }
+    h2 { color: #333; }
+    video { width: 100%; max-width: 400px; border: 2px solid #333; border-radius: 8px; background-color: #000; }
+    canvas { display: none; }
+    button { padding: 15px 30px; font-size: 18px; margin: 20px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
+    #resultArea { margin-top: 20px; padding: 15px; border-radius: 8px; background-color: #fff; min-height: 100px; white-space: pre-wrap; text-align: left; border: 1px solid #ddd; word-break: break-all; }
+  </style>
+</head>
+<body>
+
+  <h2>🎟️ チケット認証テスト</h2>
+
+  <video id="cameraView" autoplay playsinline muted></video>
+  <canvas id="snapshotCanvas"></canvas>
+
+  <div>
+    <button id="captureBtn" disabled>撮影してAI判定</button>
+  </div>
+
+  <div id="resultArea">ここに判定結果が表示されます...</div>
+
+  <!-- JavaScriptの処理を統合 -->
+  <script>
+    // ========================================================
+    // 【重要】ここにGASのWebアプリURLを貼り付けてください！
+    // 例: const GAS_WEB_APP_URL = "https://script.google.com/macros/s/xxxxxxxxx/exec";
+    // ========================================================
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzSlX34gIcOUrR_gb_SL6VSiWouZkEqhplBSoJDxlx_kCUcV59LaxA1Kxp6l7KdjiNFNw/exec";
+
+    
+    // 要素の取得
+    const videoElement = document.getElementById("cameraView");
+    const canvasElement = document.getElementById("snapshotCanvas");
+    const captureBtn = document.getElementById("captureBtn");
+    const resultArea = document.getElementById("resultArea");
+
+    // カメラの起動処理
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false
+        });
+        videoElement.srcObject = stream;
+        
+        videoElement.onloadedmetadata = () => {
+          videoElement.play();
+          captureBtn.disabled = false;
+        };
+      } catch (err) {
+        resultArea.textContent = "カメラの起動に失敗しました。ブラウザのカメラ権限が許可されているか確認してください。\nエラー: " + err.message;
+      }
+    }
+
+    // 撮影と判定通信処理
+    async function processTicketValidation() {
+      // GASのURLが書き換えられているかチェック
+      if (GAS_WEB_APP_URL === "ここにGASのウェブアプリURLを貼り付けてください" || GAS_WEB_APP_URL === "") {
+        alert("GASのWebアプリURLが設定されていません。コード内の GAS_WEB_APP_URL を書き換えてください。");
+        return;
+      }
+
+      captureBtn.disabled = true;
+      captureBtn.textContent = "AI解析中...お待ちください";
+      resultArea.textContent = "Gemini APIと通信中...";
+
+      // 画像の軽量化最適化（幅800pxに縮小）
+      const MAX_WIDTH = 800;
+      const scale = MAX_WIDTH / videoElement.videoWidth;
+      canvasElement.width = MAX_WIDTH;
+      canvasElement.height = videoElement.videoHeight * scale;
+
+      const ctx = canvasElement.getContext("2d");
+      ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+
+      // JPEG形式で圧縮（画質0.7）してBase64文字列化
+      const base64Image = canvasElement.toDataURL("image/jpeg", 0.7);
+
+      const payload = {
+        action: "validateTicket",
+        imageBase64: base64Image
+      };
+
+      try {
+        const response = await fetch(GAS_WEB_APP_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify(payload)
+        });
+
+        const resultData = await response.json();
+
+        if (resultData.success) {
+          const validStatus = resultData.data.isValid;
+          const usedStatus = resultData.data.isUsed;
+          
+          let displayMessage = "【AI解析完了】\n\n";
+          
+          if (validStatus) {
+            displayMessage += "✅ 認証成功！有効なエアホッケーチケットです。\n";
+          } else if (usedStatus) {
+            displayMessage += "❌ エラー：このチケットは既に使用されています（「済」マーク検出）。\n";
+          } else {
+            displayMessage += "❌ エラー：有効なチケットとして認識できませんでした。\n";
+          }
+          
+          displayMessage += "\n詳細データ:\n" + JSON.stringify(resultData.data.details, null, 2);
+          resultArea.textContent = displayMessage;
+        } else {
+          resultArea.textContent = "サーバー側でエラーが発生しました。\n詳細: " + resultData.error;
+        }
+      } catch (err) {
+        resultArea.textContent = "通信エラーが発生しました。\n詳細: " + err.message;
+      } finally {
+        captureBtn.disabled = false;
+        captureBtn.textContent = "撮影してAI判定";
+      }
+    }
+
+    // イベントリスナーの登録
+    captureBtn.addEventListener("click", processTicketValidation);
+
+    // ページ読み込み時にカメラを起動
+    window.onload = startCamera;
+  </script>
+</body>
+</html>
